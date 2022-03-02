@@ -1,11 +1,9 @@
-from dataclasses import dataclass
-from itertools import count
 import os
 import sys
-from time import sleep
-from typing import List, Tuple
 import xml.etree.ElementTree as ET
-
+from dataclasses import dataclass
+from time import sleep
+from typing import List, Set, Tuple
 
 import requests as r
 from bs4 import BeautifulSoup
@@ -13,14 +11,6 @@ from bs4 import BeautifulSoup
 LIST_TEMPLATE = "https://boardgamegeek.com/browse/boardgame/page/{}"
 GAME_API_TEMPLATE = "https://boardgamegeek.com/xmlapi2/thing?id={}&stats=1"
 GAME_PAGE_TEMPLATE = "https://boardgamegeek.com/boardgame/{}"
-
-
-@dataclass
-class Game:
-    bgg_rank: str
-    name: str
-    year: str
-    bgg_id: str
 
 
 def main():
@@ -40,7 +30,8 @@ def main():
     for page in range(1, num_pages + 1):
         games = get_page_of_games(page)
         for game in games:
-            best_counts, recommended_counts, weight = get_game_stats(game.bgg_id)
+            best_counts, recommended_counts, weight = \
+                get_game_stats(game.bgg_id)
             rating = "BEST" if num_players in best_counts \
                 else "RECOMMENDED" if num_players in recommended_counts \
                 else None
@@ -50,7 +41,7 @@ def main():
                       f"\t{GAME_PAGE_TEMPLATE.format(game.bgg_id)}")
 
 
-def get_game_stats(bgg_id: str):
+def get_game_stats(bgg_id: str) -> Tuple[Set[int], Set[int], float]:
     """Returns the best/recommended player counts for a game,
     as well as its weight (complexity) rating
 
@@ -98,39 +89,35 @@ def get_game_stats(bgg_id: str):
     return best_counts, recommended_counts, average_weight
 
 
-def get_page_of_games(num: int) -> List[Game]:
+def get_page_of_games(num: int) -> List['Game']:
     """Returns the numth page of BGG top games.
 
     Args:
         num (int): the number of the page
 
     Returns:
-        List[Tuple[str, str]]: the id and the
+        List[Game]: the resulting list of Games
     """
     html = r.get(LIST_TEMPLATE.format(num)).content
     bs = BeautifulSoup(html, features="lxml")
     # Skip the header row
     table_rows = bs.find("table").findAll("tr")[1:]
-    return [Game(get_bgg_rank(row), get_name(row),
-                 get_year(row), get_bgg_id(row))
-            for row in table_rows]
+    return [Game(row) for row in table_rows]
 
 
-def get_bgg_id(row):
-    return row.find("a", {"class": "primary"})['href'].split("/")[2]
+@dataclass
+class Game:
+    bgg_rank: str
+    name: str
+    year: str
+    bgg_id: str
 
-
-def get_bgg_rank(row):
-    return row.find("td", {"class": "collection_rank"}).getText().strip()
-
-
-def get_year(row):
-    return row.find("span").getText()[1:-1]
-
-
-def get_name(row):
-    return row.find("a", {"class": "primary"}, recursive=True) \
+    def __init__(self, row):
+        self.bgg_rank = row.find("td", {"class": "collection_rank"}) \
             .getText().strip()
+        self.name = row.find("a", {"class": "primary"}).getText().strip()
+        self.year = row.find("span").getText()[1:-1]
+        self.bgg_id = row.find("a", {"class": "primary"})['href'].split("/")[2]
 
 
 if __name__ == "__main__":
