@@ -74,18 +74,18 @@ def get_game_stats(bgg_id: str) -> Tuple[Set[int], Set[int], float]:
     for num_players in nums:
         count_str = num_players.attrib["numplayers"]
         if count_str[-1] == '+':
-            count = range(int(count_str[:-1]), 101)
+            count = 1234
         else:
-            count = [int(count_str)]
+            count = int(count_str)
         votes = {}
         for result in num_players:
             name = result.attrib['value']
             numvotes = int(result.attrib['numvotes'])
             votes[name] = numvotes
         if votes["Best"] == max(votes.values()):
-            best_counts.update(count)
+            best_counts.add(count)
         elif votes["Recommended"] == max(votes.values()):
-            recommended_counts.update(count)
+            recommended_counts.add(count)
     return best_counts, recommended_counts, average_weight
 
 
