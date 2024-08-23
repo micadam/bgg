@@ -30,15 +30,18 @@ def main():
     for page in range(1, num_pages + 1):
         games = get_page_of_games(page)
         for game in games:
-            best_counts, recommended_counts, weight = \
-                get_game_stats(game.bgg_id)
-            rating = "BEST" if num_players in best_counts \
-                else "RECOMMENDED" if num_players in recommended_counts \
-                else None
+            best_counts, recommended_counts, weight = get_game_stats(game.bgg_id)
+            rating = (
+                "BEST"
+                if num_players in best_counts
+                else "RECOMMENDED" if num_players in recommended_counts else None
+            )
             if rating:
-                print(f"{rating}\t{game.bgg_rank}\t{game.name}"
-                      f"\t{game.year}\t{weight:.2f}/5.00"
-                      f"\t{GAME_PAGE_TEMPLATE.format(game.bgg_id)}")
+                print(
+                    f"{rating}\t{game.bgg_rank}\t{game.name}"
+                    f"\t{game.year}\t{weight:.2f}/5.00"
+                    f"\t{GAME_PAGE_TEMPLATE.format(game.bgg_id)}"
+                )
 
 
 def get_game_stats(bgg_id: str) -> Tuple[Set[int], Set[int], float]:
@@ -67,20 +70,19 @@ def get_game_stats(bgg_id: str) -> Tuple[Set[int], Set[int], float]:
                 sleep(1)
             else:
                 print("Unexpected exception")
-                print(ET.tostring(tree.getroot(),
-                                  encoding='utf8', method='xml'))
+                print(ET.tostring(tree.getroot(), encoding="utf8", method="xml"))
                 exit(1)
     average_weight = float(average_weight_elem.attrib["value"])
     for num_players in nums:
         count_str = num_players.attrib["numplayers"]
-        if count_str[-1] == '+':
+        if count_str[-1] == "+":
             count = 1234
         else:
             count = int(count_str)
         votes = {}
         for result in num_players:
-            name = result.attrib['value']
-            numvotes = int(result.attrib['numvotes'])
+            name = result.attrib["value"]
+            numvotes = int(result.attrib["numvotes"])
             votes[name] = numvotes
         if votes["Best"] == max(votes.values()):
             best_counts.add(count)
@@ -89,7 +91,7 @@ def get_game_stats(bgg_id: str) -> Tuple[Set[int], Set[int], float]:
     return best_counts, recommended_counts, average_weight
 
 
-def get_page_of_games(num: int) -> List['Game']:
+def get_page_of_games(num: int) -> List["Game"]:
     """Returns the numth page of BGG top games.
 
     Args:
@@ -102,7 +104,11 @@ def get_page_of_games(num: int) -> List['Game']:
     bs = BeautifulSoup(html, features="lxml")
     # Skip the header row
     table_rows = bs.find("table").findAll("tr")[1:]
-    return [Game(row) for row in table_rows]
+    return [
+        Game(row)
+        for row in table_rows
+        if not row.get("class") or "geekcollection_ad" not in row.get("class")
+    ]
 
 
 @dataclass
@@ -113,11 +119,10 @@ class Game:
     bgg_id: str
 
     def __init__(self, row):
-        self.bgg_rank = row.find("td", {"class": "collection_rank"}) \
-            .getText().strip()
+        self.bgg_rank = row.find("td", {"class": "collection_rank"}).getText().strip()
         self.name = row.find("a", {"class": "primary"}).getText().strip()
         self.year = row.find("span").getText()[1:-1]
-        self.bgg_id = row.find("a", {"class": "primary"})['href'].split("/")[2]
+        self.bgg_id = row.find("a", {"class": "primary"})["href"].split("/")[2]
 
 
 if __name__ == "__main__":
